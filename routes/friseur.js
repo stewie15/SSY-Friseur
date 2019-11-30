@@ -36,11 +36,25 @@ function aktualisiereFriseur(req, res) {
     res.sendStatus(200);
 }
 
+function aquireLock() {
+    Request.put({
+        url: 'http://127.0.0.1:3000/wartezimmer/lock',
+        json: { lock: true }
+    }, lockResponse);
+
+    function lockResponse(err, res, body) {
+        if(res.statusCode === 200) {
+
+        } else {
+            setTimeout(aquireLock, 100);
+        }
+    }
+}
 
 function haareFertigGeschnitten() {
     console.log("Fertig! ... und ab mit dir " + friseur.kunde);
     friseur.kunde = null;
-
+    aquireLock();
     // Schauen wir im Wartezimmer nach, ob jemand da ist
     Request.get({
         url: 'http://127.0.0.1:3000/wartezimmer',
@@ -60,6 +74,11 @@ function wartezimmerErgebnis(error, response, body) {
     if (body.length == 0) {
         // Niemand da --> Friseur legt sich schlafen
         friseur.status = FriseurStatus.schlafend;
+        // lock freigeben
+        Request.put({
+            url: 'http://127.0.0.1:3000/wartezimmer/lock',
+            json: { lock: false }
+        });
     } else {
         // Jemand im Wartezimmer: Friseur nimmt den nächsten Kunden ran
         Request.delete({
@@ -67,6 +86,12 @@ function wartezimmerErgebnis(error, response, body) {
             json: true
         }, naechsterKunde);
     }
+
+    // lock freigeben
+    Request.put({
+        url: 'http://127.0.0.1:3000/wartezimmer/lock',
+        json: { lock: false }
+    });
 }
 
 function naechsterKunde(error, response, body) {
